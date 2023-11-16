@@ -18,3 +18,11 @@
 ### 运行
 
 go run main.go -h 查看配置参数
+
+### 测试
+```bash
+nc -u localhost 9072
+```
+输入： `pencpu-slc_lodverxxx,0.9.0,866250060829193,91937594125402,long error mesage` 测试数据  
+查看数据库是否成功保存
+

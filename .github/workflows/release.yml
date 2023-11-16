@@ -18,7 +18,7 @@ jobs:
           go-version: 1.21
       - name: Build
         run:  |
-          version=${GITHUB_REF##*/} GOOS=linux GOARCH=amd64 go build -o devlog_linux_amd64 .
+          version=${GITHUB_REF##*/} CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o devlog_linux_amd64 .
       - name: Release
         uses: softprops/action-gh-release@v1
         with:

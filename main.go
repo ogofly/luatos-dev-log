@@ -59,10 +59,10 @@ func main() {
 	} else if *dbType == "mysql" {
 		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS dev_log (
 			id INT AUTO_INCREMENT PRIMARY KEY,
-			dev varchar(32),
-			proj varchar(32),
-			lodver varchar(32),
-			selfver varchar(16),
+			dev varchar(64),
+			proj varchar(64),
+			lodver varchar(64),
+			selfver varchar(32),
 			devsn varchar(64),
 			errlog TEXT,
 			ipaddr varchar(64),

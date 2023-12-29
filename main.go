@@ -81,6 +81,10 @@ func main() {
 			log.Println(err)
 			continue
 		}
+		if _, err = conn.WriteToUDP([]byte(`{"r": 1}`), addr); err != nil {
+			log.Println("Ack msg error:", err)
+		}
+
 		/**
 		pencpu-slc_lodverxxx,0.9.0,866250060829193,91937594125402,long error mesage
 		解析以上实例为数据库字段：

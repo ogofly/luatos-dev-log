@@ -12,15 +12,26 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/time/rate"
+)
+
+var (
+	rateLimiter rate.Limiter
 )
 
 func main() {
+	setTimeZone()
+
 	// 命令行参数
 	listenAddr := flag.String("a", ":9072", "UDP port to listen on")
 	dbType := flag.String("dbtype", "sqlite3", "Database type: sqlite3 or mysql")
 	dbConnStr := flag.String("dbconn", "dev_log.db", "Database connection string, "+
 		"eg: logdb.sqlite3 ,  \"root:123@tcp(localhost:3306)/log\"")
+	retentDays := flag.Int("d", 30, "retention in days")
+	ratePerSec := flag.Int("r", 2, "Maximum number of logs received per second")
 	flag.Parse()
+
+	rateLimiter = *rate.NewLimiter(rate.Limit(*ratePerSec), 100)
 
 	// 创建UDP地址
 	addr, err := net.ResolveUDPAddr("udp", *listenAddr)
@@ -73,10 +84,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// 启动过期日志清理
+	go retention(*retentDays, db)
+
 	// 接收和处理UDP消息
 	buffer := make([]byte, 4096)
 	for {
 		n, addr, err := conn.ReadFromUDP(buffer)
+		if !rateLimiter.Allow() {
+			log.Println("Rate limiter reach !")
+			continue
+		}
+
 		if err != nil {
 			log.Println(err)
 			continue
@@ -98,7 +117,7 @@ func main() {
 		```
 		**/
 		message := string(buffer[:n])
-		log.Println("Receive msg: ", message)
+		// log.Println("Receive msg: ", message)
 		fields := strings.SplitN(message, ",", 5)
 		if len(fields) != 5 {
 			log.Println("Invalid message format:", message)
@@ -112,7 +131,7 @@ func main() {
 		}
 
 		// 解析字段
-		ct := time.Now().UTC()
+		ct := time.Now()
 		proj := proj_lodver[0]
 		lodver := proj_lodver[1]
 		selfver := fields[1]
@@ -127,7 +146,39 @@ func main() {
 		if err != nil {
 			log.Println("Insert log error:", err)
 		} else {
-			log.Println("Message stored in the database.")
+			// log.Println("Message stored in the database.")
 		}
 	}
+}
+
+func retention(retentDays int, db *sql.DB) {
+	log.Println("Start retention loop")
+	tick := time.Tick(time.Hour)
+	for {
+		select {
+		case <-tick:
+			t := time.Now().Add(-1 * time.Hour * time.Duration(retentDays) * 24)
+			log.Println("Retention loop to delete log before:", t)
+			if r, err := db.Exec(`DELETE FROM dev_log WHERE ct < ?`, t); err != nil {
+				log.Println("Error in retention loop delete log:", err)
+			} else {
+				c, _ := r.RowsAffected()
+				log.Println("Retention loop deleted log count:", c)
+			}
+
+		default:
+			time.Sleep(time.Second)
+		}
+	}
+}
+
+func setTimeZone() {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		log.Println("Error loading time zone:", err)
+		return
+	}
+
+	// Set the default time zone
+	time.Local = location
 }

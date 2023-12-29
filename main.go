@@ -81,7 +81,7 @@ func main() {
 			log.Println(err)
 			continue
 		}
-		if _, err = conn.WriteToUDP([]byte(`{"r": 1}`), addr); err != nil {
+		if _, err = conn.WriteToUDP([]byte(`OK`), addr); err != nil {
 			log.Println("Ack msg error:", err)
 		}
 
